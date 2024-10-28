@@ -64,7 +64,7 @@ ggplot(eu_data, aes(x = `Date Month`, y = Total_Value, group = 1)) +  # group = 
   labs(title = "Saisonalität des Gesamtwerts in der EU", 
        x = "Monat", 
        y = "Total Value") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # X-Achsentexte kippen
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5))  # X-Achsentexte kippen
 
 
 
@@ -132,8 +132,8 @@ ggplot(aggregierte_daten, aes(x = Monat, y = Gesamtwert, group = as.factor(`Date
   scale_color_manual(values = c("2021" = "grey", "2022" = "blue", "2023" = "green", "2024" = "orange")) 
 ```
 
-## Datenpacket abspeichern
+## Datenpaket abspeichern
 
 ```{r}
-#write.fst(df_Doka, "DOKA_Datenpaket.fst")
+write.fst(df_Doka_A, "DOKA_Datenpaket456.fst")
 ```
