@@ -18,15 +18,118 @@ library(naniar)
 ## Daten laden
 
 ```{r}
-df_Doka_A <- read.fst("DOKA_Datenpaket_ohne_Duplikate.fst") 
+df_Doka_A <- read.fst("DOKA_Datenpaket.fst") 
 ```
 
 ```{r}
-summary(df_Doka_A)
+head(df_Doka_A)
+```
+
+## Total Value in Monatsbasis der letzten 3 Jahre
+
+Hier zu sehen sind die summierten Total Value für das jeweilige Monat.\
+Man kann sehen, dass in den Monaten Mai, September und April am meisten an Value versendet wird.
+
+![](images/Bildschirmfoto%202024-10-28%20um%2014.52.52.png){width="442"}
+
+```{r}
+gesamtlieferungen <- df_Doka_A %>%
+  group_by(`Date Month`) %>%
+  summarize(Gesamtlieferungen = sum(`Total Value`, na.rm = TRUE))
+
+print(gesamtlieferungen)
+
 ```
 
 ```{r}
+# Nachfragetrends nach Region analysieren
+nachfragetrends_region <- df_Doka_A %>%
+  group_by(`Date Year`, `Date Month`, `Region`) %>%
+  summarize(Total_Value = sum(`Total Value`, na.rm = TRUE))
 
+
+```
+
+```{r}
+eu_data <- nachfragetrends_region %>%
+  filter(Region == "DACHUKI")  
+
+eu_data$`Date Month` <- factor(eu_data$`Date Month`, 
+                                levels = 1:12, 
+                                labels = month.abb) # Monat als Abkürzungen (Jan, Feb, ...)
+
+# Liniendiagramm für die Region EU erstellen
+ggplot(eu_data, aes(x = `Date Month`, y = Total_Value, group = 1)) +  # group = 1 für eine einzige Linie
+  geom_line(size = 1, color = "blue") +  # Linie für die EU in Blau
+  labs(title = "Saisonalität des Gesamtwerts in der EU", 
+       x = "Monat", 
+       y = "Total Value") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # X-Achsentexte kippen
+
+
+
+```
+
+```{r}
+nachfragetrends <- df_Doka_A %>%
+  group_by(`Date Month`, Region) %>%
+  summarize(gesamtlieferungen = sum(`Total Value`, na.rm = TRUE))
+
+print(nachfragetrends)
+```
+
+## Aggregierte Daten
+
+```{r}
+# Daten aggregieren nach Jahr und Monat
+aggregierte_daten <- df_Doka_A %>%
+  group_by(`Date Year`, `Date Month`) %>%
+  summarize(
+    #Gesamtlieferungen = sum(Quantity, na.rm = TRUE),
+    Gesamtwert = sum(`Total Value`, na.rm = TRUE),
+    Durchschnittskosten = mean(`Part Std Unit Cost`, na.rm = TRUE)
+  )
+
+print(aggregierte_daten)
+```
+
+```{r}
+aggregierte_daten$Date <- as.Date(paste(aggregierte_daten$`Date Year`, aggregierte_daten$`Date Month`, "01", sep = "-"))
+
+ggplot(aggregierte_daten, aes(x = Date, y = Gesamtwert, group = `Date Year`, color = as.factor(`Date Year`))) +
+  geom_line(size = 1) + 
+  labs(title = "Trend der Gesamtwerte pro Monat und Jahr", 
+       x = "Monat und Jahr", 
+       y = "Gesamtwert") +
+  scale_x_date(date_labels = "%Y-%m", date_breaks = "1 month") +
+  scale_y_continuous(labels = scales::comma) + # Y-Achse in Zahlenformat mit Kommas
+  theme_minimal() + 
+  theme(legend.title = element_blank(),  
+        axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  scale_color_manual(values = c("2021" = "grey", "2022" = "orange", "2023" = "green", "2024" = "blue")) # Farben für die Jahre anpassen
+
+
+
+
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+aggregierte_daten$Monat <- as.numeric(format(aggregierte_daten$Date, "%m"))
+
+ggplot(aggregierte_daten, aes(x = Monat, y = Gesamtwert, group = as.factor(`Date Year`), color = as.factor(`Date Year`))) +
+  geom_line(size = 1) + 
+  labs(title = "Monatlicher Trend der Gesamtwerte", 
+       x = "Monat", 
+       y = "Gesamtwert") +
+  scale_x_continuous(breaks = 1:12, labels = month.abb) + 
+  scale_y_continuous(labels = scales::comma) + 
+  theme_minimal() + 
+  theme(legend.title = element_blank(),  
+        axis.text.x = element_text(angle = 0, hjust = 0.5)) + 
+  scale_color_manual(values = c("2021" = "grey", "2022" = "blue", "2023" = "green", "2024" = "orange")) 
 ```
 
 ## Datenpacket abspeichern
