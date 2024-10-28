@@ -1,0 +1,27 @@
+---
+title: "Daten Analyse"
+author: Oliver Oberhauser, Simon Hofer, Christoph Benda, Fadil Kovacevic, Tomislav Juric
+date: "2024-09-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+library(here)
+library(tidyverse)
+library(openxlsx)
+library(GWalkR)
+```
+
+## Daten laden
+```{r}
+# Daten werden geladen und bei den Spalten Namen wird mittels sep.names = " " der Abstandhalter zwischen den Wörten von Punkt auf Abstand geändert. Ebenso wurde ein Befehl fürs Datum verwendet da beim einlesen einer Excel-Datei dies nicht ordnungsgemäß funktioniert. 
+df <- read.xlsx(here("Daten/Rohdaten/Steyr1.xlsx"), sep.names = " ")
+df$Date <- convertToDateTime(df$Date, origin = "1900-01-01")
+```
+
+## Datenpaket abspeichern
+```{r}
+write.fst(df, "DOKA_Daten_Vorverarbeitung.fst")
+```
+

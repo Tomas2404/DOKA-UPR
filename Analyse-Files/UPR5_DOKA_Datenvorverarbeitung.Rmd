@@ -1,0 +1,144 @@
+---
+title: "UPR5_DOKA_Datenvorverarbeitung"
+author: Oliver Oberhauser, Simon Hofer, Christoph Benda, Fadil Kovacevic, Tomislav Juric
+date: "2024-09-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+library(tidyverse)
+library(lubridate)
+library(esquisse)
+library(openxlsx)
+library(fst)
+library(dplyr)
+library(naniar)
+```
+
+# Datenvorverarbeitung
+
+## Daten laden
+
+```{r}
+df_Doka <- read.fst("DOKA_Daten_Vorverarbeitung.fst") 
+```
+
+## Analyse NA-Werte - Änderung der NA-Werte auf "Extern"
+
+```{r}
+#Analyse ob das Datenpacket vollständig ist oder ob NA-Werte exisitieren. NA-Werte kommen vor, wenn ein Feld in der Tabelle keinen Wert bzw. Inhalt hat.Das kann passieren beim einlesen des Datenpackets oder es fehlt allgemein im Datenpacket. Es ist wichtig, dass eine Tabelle vollständig ist und entweder die fehlenden Werte nachgetragen werden oder diese Zeilen mit fehlenden Werte gelöscht werden.
+
+#In diesem Fall gab es ein Problem beim Einlesen des Datenpackets und wenn die Orignaldatei betrachtet wird, ist ersichtlich das die NA-Werte auf den Begriff "Extern" umgewandelt werden müssen.
+
+df_Doka_NA <- filter(df_Doka, is.na(Supplier))
+
+df_Doka$Supplier[is.na(df_Doka$Supplier)] <- "Extern"
+```
+
+### Kontrolle NA-Werte
+
+```{r}
+#Kontrolle ob noch NA-Werte im Datenpacket existieren.
+NA_Tabelle <- df_Doka[!complete.cases(df_Doka), ]
+print(NA_Tabelle)
+```
+
+## Zusammenführen von DC Amstetten (080) und Standort Außenlager Amstetten (088)
+
+Da wir in der Analyse diese Beiden gemeinsam betrachten sollen, werden diese Standorte zusammengeführt und alle als (080) betrachtet.
+
+```{r}
+# Ändert alle '088' Werte in der Spalte Supplier zu '080'
+df_Doka$Supplier <- ifelse(df_Doka$Supplier == '088', '080', df_Doka$Supplier)
+
+df_Doka_filter <- filter(df_Doka, Supplier == "080") #hier wurde nur überprüft, ob es geändert wurde
+```
+
+## Umbenennen von Spaltennamen
+
+```{r}
+#Hier wurde zur Vereinfachung Spaltennamen umgeschrieben.
+df_Doka <- df_Doka %>% rename(Runningmeter = `Part RM`, 
+                                Squaremeter = `Part SQM`, 
+                                  `Spare Part` = `Is Spare Part`)
+head(df_Doka)
+```
+
+## Analyse und Änderung Datentyp
+
+```{r}
+# Im folgenden werden die Datentypen kontrolliert und dementsprechend geändert.
+
+df_Doka <- df_Doka %>% 
+  mutate(Quantity = as.numeric(Quantity), 
+         `Part Std Unit Cost` = as.numeric(`Part Std Unit Cost`),
+             `Part Weight` = as.numeric(`Part Weight`),
+                  Runningmeter = as.numeric(Runningmeter),
+                     Squaremeter = as.numeric(Squaremeter),
+                        Date = as.Date(Date, format = "%Y-%m-%d" ))
+str(df_Doka)
+```
+
+## Berechnung neuer Werte
+
+Total Value, Total Weight, Total Runningmeter, Total Squaremeter
+
+```{r}
+# Im folgenden weden neue Spalten erstellt wo mittels Berechnungen neue interessante Werte für die Datenanylse entstehen. Ebenso wurden mittels dem Befehl "relocate" die Anordnung der neuen Spalten geändert.
+
+df_Doka <- df_Doka %>%
+              mutate(`Total Value` = Quantity*`Part Std Unit Cost`) %>%
+                      relocate(`Total Value`, .after = `Part Std Unit Cost`) %>%
+  
+              mutate(`Total Weight` = Quantity * `Part Weight`) %>%
+                      relocate(`Total Weight`, .after = `Part Weight`) %>% 
+  
+              mutate(`Total Runningmeter` = Quantity * Runningmeter) %>%
+                      relocate(`Total Runningmeter`, .after = Runningmeter) %>% 
+  
+              mutate(`Total Squaremeter` = Quantity * Squaremeter) %>%
+                      relocate(`Total Squaremeter`, .after = Squaremeter)
+
+head(df_Doka)
+```
+
+## Erstellung einer neuen Spalte für die monatliche Analyse
+
+Da die Vorgabe ist das wir eine Analyse auf Monats-Basis erledigen sollen wird eine neue Spalte erstellt.
+
+```{r}
+# Neue Spalten für Monat und Jahr erstellen
+df_Doka <- df_Doka %>%
+  mutate(`Date Month` = month(Date),   # Monat extrahieren
+    `Date Year` = year(Date)      # Jahr extrahieren
+  )
+
+df_Doka <- df_Doka %>% 
+  relocate(`Date Month`,`Date Year`, .after = Date)
+  
+
+df_Doka <- df_Doka %>% 
+  mutate(`Date Month`= as.integer(`Date Month`),
+         `Date Year` = as.integer(`Date Year`)) %>% 
+  arrange(`Date Month`, `Date Year`)
+
+df_Doka
+```
+
+## Untersuchung auf Duplikate
+
+Es werden alle Duplikate angezeigt, danach entfernt und in einem eigenen df abgespeichert.
+
+```{r}
+df_Doka_duplicates <- df_Doka[duplicated(df_Doka), ]
+df_Doka_single <- df_Doka %>% distinct()
+```
+
+
+## Datenpacket abspeichern
+
+```{r}
+write.fst(df_Doka, "DOKA_Datenpaket.fst")
+write.fst(df_Doka_single, "DOKA_Datenpaket_ohne_Duplikate.fst")
+```

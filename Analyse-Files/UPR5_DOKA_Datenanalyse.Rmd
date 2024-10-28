@@ -1,0 +1,36 @@
+---
+title: "UPR5_DOKA_Datenanalyse"
+author: Oliver Oberhauser, Simon Hofer, Christoph Benda, Fadil Kovacevic, Tomislav Juric
+date: "2024-10-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+library(tidyverse)
+library(esquisse)
+library(openxlsx)
+library(fst)
+library(dplyr)
+library(naniar)
+```
+
+## Daten laden
+
+```{r}
+df_Doka_A <- read.fst("DOKA_Datenpaket_ohne_Duplikate.fst") 
+```
+
+```{r}
+summary(df_Doka_A)
+```
+
+```{r}
+
+```
+
+## Datenpacket abspeichern
+
+```{r}
+#write.fst(df_Doka, "DOKA_Datenpaket.fst")
+```
